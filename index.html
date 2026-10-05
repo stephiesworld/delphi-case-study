@@ -1,0 +1,331 @@
+<title>Delphi Case Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Layout: a single reading column (~68ch) with a wider band for the day's timeline and the four-version table; ticker-style mono labels mark data. */
+  :root {
+    --paper: #f6f7f5;
+    --ink: #17201c;
+    --muted: #59645e;
+    --rule: #d9dfdb;
+    --panel: #eceeeb;
+    --green: #11724a;
+    --red: #a83b2f;
+    --display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+    --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #101513; --ink: #e5ebe7; --muted: #9aa69f; --rule: #29312d; --panel: #171e1b;
+      --green: #4fbf88; --red: #e0786b; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #101513; --ink: #e5ebe7; --muted: #9aa69f; --rule: #29312d; --panel: #171e1b;
+    --green: #4fbf88; --red: #e0786b; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 1.125rem/1.7 var(--body);
+    padding-inline: 20px;
+    padding-block: 0 64px;
+  }
+  .wrap { max-width: 68ch; margin: 0 auto; }
+  .wide { max-width: 960px; margin: 0 auto; }
+
+  h1, h2, h3 { font-family: var(--display); line-height: 1.12; text-wrap: balance; margin: 0; }
+  h2 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); font-weight: 700; letter-spacing: -0.015em; margin-top: 3.2rem; }
+  h3 { font-size: 1.2rem; font-weight: 600; margin-top: 2rem; }
+  p { margin: 1rem 0 0; }
+  a { color: var(--green); text-underline-offset: 3px; }
+  a:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; border-radius: 2px; }
+  strong { font-weight: 600; }
+
+  .label {
+    font: 500 0.75rem/1 var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Header strip, styled like a quote line */
+  .tape {
+    border-bottom: 1px solid var(--rule);
+    padding-block: 14px;
+    margin-inline: -20px;
+    padding-inline: 20px;
+    overflow-x: auto;
+    white-space: nowrap;
+    font: 400 0.8rem/1 var(--mono);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .tape span { margin-right: 1.6em; }
+  .tape b { color: var(--ink); font-weight: 500; margin-right: 0.5em; }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+
+  header.hero { padding-block: 56px 8px; }
+  .hero h1 { font-size: clamp(2.6rem, 7vw, 4.4rem); font-weight: 700; letter-spacing: -0.03em; margin-top: 14px; }
+  .hero .dek { font-size: clamp(1.2rem, 2.4vw, 1.45rem); line-height: 1.5; color: var(--muted); margin-top: 18px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 26px; font: 400 0.85rem/1.4 var(--mono); color: var(--muted); }
+
+  /* Pull quote */
+  blockquote {
+    margin: 2rem 0 0;
+    padding: 0 0 0 1.2rem;
+    border-left: 2px solid var(--ink);
+    font-style: italic;
+    color: var(--ink);
+  }
+
+  /* Before / after */
+  .diff { margin-top: 1.4rem; display: grid; gap: 0; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+  .diff div { padding: 14px 18px; font-size: 1.02rem; line-height: 1.55; }
+  .diff .before { background: color-mix(in srgb, var(--red) 8%, var(--paper)); }
+  .diff .after { background: color-mix(in srgb, var(--green) 9%, var(--paper)); border-top: 1px solid var(--rule); }
+  .diff .label { display: block; margin-bottom: 6px; }
+  .diff .before .label { color: var(--red); }
+  .diff .after .label { color: var(--green); }
+
+  /* The day */
+  .day { margin-top: 1.6rem; border-top: 1px solid var(--rule); }
+  .day li {
+    display: grid; grid-template-columns: 4.2rem 1fr; gap: 0 1rem;
+    padding-block: 12px; border-bottom: 1px solid var(--rule);
+  }
+  .day ol { list-style: none; margin: 0; padding: 0; }
+  .day time { font: 500 0.9rem/1.6 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .day span { min-width: 0; font-size: 1.02rem; line-height: 1.55; }
+
+  /* Four versions */
+  .versions { margin-top: 1.6rem; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--ink); }
+  .versions article { padding: 16px 16px 20px 0; border-right: 1px solid var(--rule); }
+  .versions article + article { padding-left: 16px; }
+  .versions article:last-child { border-right: 0; }
+  .versions .n { font: 500 0.8rem/1 var(--mono); color: var(--muted); }
+  .versions h3 { margin-top: 10px; font-size: 1.08rem; }
+  .versions p { font-size: 0.98rem; line-height: 1.55; margin-top: 8px; }
+  .versions .final h3 { color: var(--green); }
+  @media (max-width: 760px) {
+    .versions { grid-template-columns: 1fr; }
+    .versions article, .versions article + article { padding: 16px 0; border-right: 0; border-bottom: 1px solid var(--rule); }
+  }
+
+  /* Findings list */
+  .found { margin-top: 1.2rem; padding: 0; list-style: none; }
+  .found li { padding: 12px 0; border-bottom: 1px solid var(--rule); font-size: 1.02rem; line-height: 1.55; }
+  .found .tk { font: 500 0.8rem/1 var(--mono); color: var(--ink); background: var(--panel); padding: 3px 6px; border-radius: 3px; margin-right: 8px; }
+
+  ul.plain { margin: 1rem 0 0; padding-left: 1.2rem; }
+  ul.plain li { margin-top: 0.45rem; }
+
+  /* Ratings snapshot */
+  .ratings { margin-top: 1.4rem; overflow-x: auto; }
+  .ratings table { border-collapse: collapse; width: 100%; min-width: 480px; font-size: 0.98rem; }
+  .ratings th { text-align: left; font: 500 0.75rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 10px 12px 10px 0; border-bottom: 1px solid var(--ink); }
+  .ratings td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .tag { font: 500 0.78rem/1 var(--mono); letter-spacing: 0.06em; }
+  .tag.buy { color: var(--green); } .tag.sell { color: var(--red); } .tag.hold { color: var(--muted); }
+
+  footer { margin-top: 4rem; padding-top: 1.2rem; border-top: 1px solid var(--rule); font: 400 0.85rem/1.6 var(--mono); color: var(--muted); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero h1 { animation: rise 0.6s ease-out both; }
+    @keyframes rise { from { transform: translateY(6px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+  }
+</style>
+
+<div class="tape" aria-label="Delphi recommendations as of October 2, 2026 close">
+  <span><b>AMZN</b><span class="up">BUY</span></span>
+  <span><b>NVDA</b><span class="up">BUY</span></span>
+  <span><b>AVGO</b><span class="up">BUY</span></span>
+  <span><b>PLTR</b><span class="up">BUY</span></span>
+  <span><b>MU</b><span class="up">BUY</span></span>
+  <span><b>SBUX</b>HOLD</span>
+  <span><b>AAPL</b>HOLD</span>
+  <span><b>KO</b>HOLD</span>
+  <span><b>TSLA</b><span class="down">SELL</span></span>
+  <span><b>LCID</b><span class="down">SELL</span></span>
+  <span><b>AMC</b><span class="down">SELL</span></span>
+</div>
+
+<main>
+  <header class="hero wrap">
+    <div class="label">Case study</div>
+    <h1>Delphi: an AI analyst, built in a day</h1>
+    <p class="dek">How a dinner-table habit of explaining companies became a research product for Robinhood's 100 most popular stocks, and what it took to trust the AI agents doing the work.</p>
+    <div class="meta">
+      <span>Built Oct 5, 2026 with Claude Code</span>
+      <span>23 companies covered</span>
+      <a href="https://delphi-stocks.vercel.app">delphi-stocks.vercel.app</a>
+    </div>
+  </header>
+
+  <section class="wrap">
+    <h2>The idea</h2>
+    <p>The best explanations of companies I've heard weren't in an app. They were stories. Starbucks had a new CEO from Chipotle. Lines at the drive-thru were too long, mobile orders were swamping baristas, and people who saw the line drove away. So the new CEO was cutting the menu and limiting customizations to make every drink faster. It made sense in a way a stock chart never does.</p>
+    <p>The Robinhood app gives you facts without the story. I wanted that kind of explanation for every company people actually own: each with a clear story, the latest earnings, and a recommendation.</p>
+
+    <h2>What Delphi does</h2>
+    <p>Every covered company gets the same page, read top to bottom:</p>
+    <ul class="plain">
+      <li><strong>The takeaway.</strong> One headline a portfolio manager gets in ten seconds, then a short narrative.</li>
+      <li><strong>The recommendation.</strong> Buy, Hold, or Sell, a 12-month target, how it compares with the S&amp;P 500, and the reason in one sentence.</li>
+      <li><strong>Bull vs. bear.</strong> The one question the market is arguing about, and each side's case.</li>
+      <li><strong>The backstory.</strong> The problem driving the company's strategy, why it matters, and what the company is doing about it.</li>
+      <li><strong>Earnings.</strong> What Wall Street expected, what happened, and why the stock moved.</li>
+      <li><strong>What we're less sure about.</strong> Where to be skeptical.</li>
+      <li><strong>Sources</strong> for every claim, and a public track record of every rating.</li>
+    </ul>
+    <p>Prices update every evening. When a company reports earnings, an AI agent rewrites its story and rating the next evening, on its own.</p>
+  </section>
+
+  <section class="wide">
+    <div class="wrap"><h2>The day, by commit</h2></div>
+    <div class="day">
+      <ol>
+        <li><time>08:07</time><span>Empty project. Name chosen: Delphi.</span></li>
+        <li><time>08:14</time><span>First three stories (Starbucks, Micron, NVIDIA), each a different kind of story, written and sourced by research agents.</span></li>
+        <li><time>11:42</time><span>Redesign to a readable trading-terminal look, with all 100 stocks, live prices, and earnings dates.</span></li>
+        <li><time>12:04</time><span>Ten more companies, each fact-checked against company filings before publishing.</span></li>
+        <li><time>13:01</time><span>Robinhood-style price chart, a plain-English rewrite of every story, and a takeaway at the top.</span></li>
+        <li><time>16:32</time><span>Buy / Hold / Sell recommendations against the S&amp;P 500, and a public track record.</span></li>
+        <li><time>16:35</time><span>A nightly agent that rewrites a company's story after it reports earnings.</span></li>
+        <li><time>17:03</time><span>Ten more companies, and a backstory for all 23.</span></li>
+        <li><time>17:08</time><span>A framing error in the Starbucks story caught by a human reader, and fixed.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <h2>The turns that mattered</h2>
+
+    <h3>A template is the wrong answer</h3>
+    <p>My first instinct was a standard framework: who's the CEO, what's their track record, what's the plan. It worked for Starbucks and nothing else. NVIDIA's story is a founder who has run it for 30 years. Micron's is a memory market that booms and busts. AMC's is pandemic debt.</p>
+    <p>So every story starts by working out what kind of story it is, who the real rivals are, and the one question the market is actually arguing about.</p>
+
+    <h3>"It looks like AI made it"</h3>
+    <p>The first design used a cream background, an elegant serif, and gold accents: the default look of AI-built sites. I rejected it. We mocked up three trading-terminal styles and picked the most readable one, not the coolest. The flashier options looked great and told me nothing.</p>
+    <p>The writing had the same problem. The first rewrite was punchy, and an analyst would have laughed at it. The second was plain but dense with jargon, and I'm the target reader. The fix was a rule that serves two readers at once: a portfolio manager with ten seconds, and a smart friend with no finance background.</p>
+    <div class="diff" role="group" aria-label="Before and after">
+      <div class="before"><span class="label">Before</span>"Upside requires box office to cut leverage without dilution."</div>
+      <div class="after"><span class="label">After</span>"AMC needs a strong movie year to pay down debt without selling more shares."</div>
+    </div>
+
+    <h3>Facts aren't a story</h3>
+    <p>Even with clear writing, something was missing. The Starbucks page listed the steps (menu cut, more baristas, a four-minute target) but never said why. Every step was a response to one problem: slow morning lines were costing visits. Without that, "menu cut" is trivia.</p>
+    <p>So every story got a backstory: the problem, why it matters in dollars or customers, and what the company is doing about it. Once you know it, the strategy reads like a plot instead of a list.</p>
+  </section>
+
+  <section class="wide">
+    <div class="wrap">
+      <h2>Getting the recommendation right took four tries</h2>
+      <p>A hedge-fund analyst asks "long, short, or neither?" Most Robinhood users never short, so the labels are Buy, Hold, and Sell, where Sell means "don't buy now, consider trimming." Each version failed in a way that taught something.</p>
+    </div>
+    <div class="versions">
+      <article>
+        <div class="n">Version 1</div>
+        <h3>Everything was Hold</h3>
+        <p>Agents anchored every target on Wall Street's consensus and gave every scenario the same 25/50/25 odds. Assume the market is right and you never disagree with it.</p>
+      </article>
+      <article>
+        <div class="n">Version 2</div>
+        <h3>Some were absurd</h3>
+        <p>The fix produced a +116% expected return for Amazon. Years of unusually low profits made its "normal" valuation look huge.</p>
+      </article>
+      <article>
+        <div class="n">Version 3</div>
+        <h3>Agents improvised</h3>
+        <p>Each agent made slightly different choices, so ratings weren't comparable across companies.</p>
+      </article>
+      <article class="final">
+        <div class="n">Version 4</div>
+        <h3>Same math, against the market</h3>
+        <p>The math moved into code, identical for every company. Agents gather inputs and judge only the odds and the explanation. Every stock is compared with the S&amp;P 500 run through the same math, which cancels the optimism every estimate shares.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <h3>Publishing without review means building guardrails</h3>
+    <p>Ratings publish automatically. That is only reasonable with checks that run every time:</p>
+    <ul class="plain">
+      <li>The label is calculated, never chosen.</li>
+      <li>Ratings pause after an earnings report until the story is refreshed, and after 120 days regardless.</li>
+      <li>Extreme results pause instead of publishing, because they usually mean a bad input.</li>
+      <li>Stocks listed less than two years aren't rated.</li>
+      <li>Stock splits are detected and flagged automatically.</li>
+      <li>Every rating change is logged with the date, price, and S&amp;P 500 level, and the log is never edited.</li>
+    </ul>
+
+    <h2>Working with a team of AI agents</h2>
+    <p>Most of the research was done by AI agents running in parallel: one per company to write, more to fact-check, more to audit. Several dozen in one day. The lessons were less about the agents and more about the system around them.</p>
+
+    <h3>The brief is the product</h3>
+    <p>Every quality jump came from better instructions. When an instruction was wrong, every agent faithfully did the wrong thing. An early rule for counting future share sales cancelled itself out in the math, and Lucid came out a high-conviction Buy. Corrected, it's a Sell: Lucid will likely have to double its share count to fund its losses.</p>
+
+    <h3>Checking catches numbers. It didn't catch framing.</h3>
+    <p>Fact-check agents compared every headline number against company filings and found real errors: a share count that rose 74%, not 42%; debt of $98 billion, not $121 billion; a 64th consecutive dividend increase, not the 63rd.</p>
+    <p>But I found the error that mattered most myself. The Starbucks story said U.S. transactions fell 10% "in Niccol's first quarter." The number was right. Niccol had started three weeks before that quarter ended; the decline happened under the previous CEO, and it's why he was replaced. Every fact was true, and the sentence still blamed the wrong person.</p>
+    <blockquote>Every fact was true, and the sentence still blamed the wrong person.</blockquote>
+    <p>That led to a third kind of check: an adversarial audit whose only job is to attack each story's reasoning. On its first pass it found problems no number check could:</p>
+    <ul class="found">
+      <li><span class="tk">KO</span>The same error as Starbucks, in reverse: the story credited the new CEO with a strategy that started under his predecessor, who handed over three days before the quarter ended. This time the audit caught it, not me.</li>
+      <li><span class="tk">TSLA</span>The story said car profits were shrinking. Car margins actually rose; profit fell because operating expenses jumped 47% on AI research and stock pay.</li>
+      <li><span class="tk">MSFT</span>An 84% jump in signed contracts read as broad demand. Most of it was OpenAI; without OpenAI, growth was 25%.</li>
+      <li><span class="tk">NVDA</span>A 70% growth forecast credited to the CEO was the finance chief's company guidance, and a quote attributed to NVIDIA came from U.S. officials.</li>
+      <li><span class="tk">GOOGL</span>"Ad profits no longer cover the spending" rested on one negative quarter; the past twelve months were still $53 billion positive.</li>
+      <li><span class="tk">AMD</span>Two "6 gigawatt" AI chip deals were presented as firm. Only the first gigawatt of each is binding.</li>
+      <li><span class="tk">MU</span>The 2023 memory bust was blamed on new factories. It was mainly customers cutting orders.</li>
+    </ul>
+    <p>The audit also writes a "What we're less sure about" box for every story, so readers know where to be skeptical without needing their own background knowledge.</p>
+
+    <h3>Write down the rules you assume are obvious</h3>
+    <p>While downloading SEC filings, a few agents put my name and email in the request header, because the SEC asks automated tools for contact details. It went only to sec.gov and was low-risk, but they hadn't asked. Every brief now forbids it.</p>
+
+    <h3>Verification is the product</h3>
+    <p>The reason to trust Delphi isn't that AI wrote it. It's that every claim has a source, every number was checked against filings, every story's logic was attacked, uncertainties are shown on the page, and every rating is scored in public against the market.</p>
+  </section>
+
+  <section class="wrap">
+    <h2>The first recommendations</h2>
+    <p>As of the October 2, 2026 close, compared with the S&amp;P 500's expected return under the same method.</p>
+    <div class="ratings">
+      <table>
+        <thead><tr><th>Rating</th><th>Companies</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag buy">BUY</span></td><td>Amazon, NVIDIA, Broadcom, Palantir, Micron, Netflix, Microsoft</td></tr>
+          <tr><td><span class="tag hold">HOLD</span></td><td>Apple, AMD, Disney, Ford, Alphabet, Robinhood, Intel, Coca-Cola, Meta, NIO, Starbucks, SNDL</td></tr>
+          <tr><td><span class="tag sell">SELL</span></td><td>Lucid, AMC, Tesla</td></tr>
+          <tr><td><span class="tag hold">NOT RATED</span></td><td>SpaceX (listed less than two years)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Ratings recompute after every market close, so these will move. The <a href="https://delphi-stocks.vercel.app/track-record">track record</a> logs every change.</p>
+
+    <h2>How it runs</h2>
+    <ul class="plain">
+      <li><strong>After every market close,</strong> a scheduled job pulls prices and earnings data, recomputes every rating against the new prices, and logs any changes.</li>
+      <li><strong>Every weekday evening,</strong> a cloud agent checks which companies have reported earnings, rewrites their stories and rating inputs, passes the checks, and publishes.</li>
+      <li><strong>On a free data tier.</strong> Pages never call the market-data provider when someone visits; they read a saved daily snapshot.</li>
+    </ul>
+
+    <h2>What's next</h2>
+    <ul class="plain">
+      <li>Coverage for the rest of the 100, in order of popularity.</li>
+      <li>A way for readers to flag mistakes.</li>
+      <li>Time. The track record is the real test, and it takes months to mean anything.</li>
+    </ul>
+
+    <footer>
+      Delphi explains businesses. Its ratings are model-generated and are not personalized investment advice.<br>
+      <a href="https://delphi-stocks.vercel.app">delphi-stocks.vercel.app</a>
+    </footer>
+  </section>
+</main>
